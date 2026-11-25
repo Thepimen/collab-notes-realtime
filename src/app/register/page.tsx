@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { isSupabaseConfigured } from '@/services/supabase.client';
 import type { AppRole } from '@/types/domain.types';
 import { EditorSkeletonLoader } from '@/components/ui/SkeletonLoaders';
 
@@ -22,6 +23,7 @@ function RegisterContent() {
   const [password, setPassword] = useState<string>('');
   const [role, setRole] = useState<AppRole>('editor');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const cloudMode = isSupabaseConfigured();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +42,11 @@ function RegisterContent() {
       });
       router.replace(returnUrl);
     } catch (error) {
+      if (error instanceof Error && error.name === 'EmailConfirmationRequired') {
+        pushToast({ type: 'info', title: 'Confirma tu email', message: error.message });
+        router.replace('/login');
+        return;
+      }
       const msg = error instanceof Error ? error.message : 'Registration failed.';
       pushToast({
         type: 'error',
@@ -118,6 +125,7 @@ function RegisterContent() {
             />
           </div>
 
+          {!cloudMode && (
           <div>
             <label
               htmlFor="register-role"
@@ -136,6 +144,8 @@ function RegisterContent() {
               <option value="admin">admin — Platform Architect</option>
             </select>
           </div>
+
+          )}
 
           <button
             type="submit"

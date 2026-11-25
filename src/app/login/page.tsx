@@ -7,6 +7,7 @@ import { ArrowRight, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
+import { isSupabaseConfigured } from '@/services/supabase.client';
 import { EditorSkeletonLoader } from '@/components/ui/SkeletonLoaders';
 
 function LoginContent() {
@@ -18,8 +19,9 @@ function LoginContent() {
 
   const returnUrl = searchParams.get('returnUrl') || '/dashboard';
 
-  const [email, setEmail] = useState<string>('admin@collabnotes.io');
-  const [password, setPassword] = useState<string>('CollabNotes2026!');
+  const cloudMode = isSupabaseConfigured();
+  const [email, setEmail] = useState<string>(cloudMode ? '' : 'admin@collabnotes.io');
+  const [password, setPassword] = useState<string>(cloudMode ? '' : 'CollabNotes2026!');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [specimenVersion, setSpecimenVersion] = useState<number>(4);
 
@@ -209,7 +211,7 @@ function LoginContent() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@collabnotes.io"
+                placeholder={cloudMode ? 'tu@email.com' : 'admin@collabnotes.io'}
                 className="mt-1.5 w-full rounded-lg border border-hairline bg-elevated px-3.5 py-2.5 text-sm text-ink placeholder-muted transition focus:border-terracotta focus:outline-none"
               />
             </div>
@@ -222,7 +224,9 @@ function LoginContent() {
                 >
                   Password
                 </label>
-                <span className="font-mono text-[10px] text-muted">Seed: CollabNotes2026!</span>
+                {!cloudMode && (
+                  <span className="font-mono text-[10px] text-muted">Seed: CollabNotes2026!</span>
+                )}
               </div>
               <input
                 id="login-password"
@@ -246,7 +250,8 @@ function LoginContent() {
             </button>
           </form>
 
-          {/* Compact 1-Click Sandbox Switcher */}
+          {/* Compact 1-Click Sandbox Switcher (local mode only) */}
+          {!cloudMode && (
           <div className="mt-7 border-t border-hairline pt-5">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
@@ -299,7 +304,18 @@ function LoginContent() {
             </div>
           </div>
 
-          <p className="mt-5 text-center text-xs text-secondary">
+          )}
+
+          {cloudMode && (
+            <Link
+              href={`/register?returnUrl=${encodeURIComponent(returnUrl)}`}
+              className="mt-5 flex w-full items-center justify-center rounded-lg border border-hairline bg-elevated px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-terracotta hover:text-terracotta"
+            >
+              Crear mi cuenta
+            </Link>
+          )}
+
+          <p className={`mt-5 text-center text-xs text-secondary ${cloudMode ? 'hidden' : ''}`}>
             Testing the <code className="font-mono text-[11px] text-ink">on_auth_user_created</code>{' '}
             trigger?{' '}
             <Link

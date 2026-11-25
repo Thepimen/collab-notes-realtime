@@ -47,6 +47,7 @@ export class DocumentService {
           }
           return results;
         }
+        throw new Error(error?.message ?? 'Failed to load documents.');
       }
 
       const rawDocs = LocalDatabaseAdapter.getRawDocuments();
@@ -73,6 +74,7 @@ export class DocumentService {
       if (isSupabaseConfigured()) {
         const dto = await this.fetchAndHydrateSupabaseDocument(documentId, actor);
         if (dto) return dto;
+        throw new Error('Document not found or access denied by RLS (HTTP 403/404).');
       }
 
       const rawDocs = LocalDatabaseAdapter.getRawDocuments();
@@ -147,6 +149,7 @@ export class DocumentService {
 
         const hydrated = await this.fetchAndHydrateSupabaseDocument(data.id, actor);
         if (hydrated) return hydrated;
+        throw new Error('Document was created but could not be reloaded.');
       }
 
       const newRawDoc: RawStoredDocument = {

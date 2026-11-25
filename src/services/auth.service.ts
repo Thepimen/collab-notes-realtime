@@ -69,7 +69,7 @@ export class AuthService {
         } = await supabase.auth.getSession();
 
         if (sessionError || !session?.user) {
-          return LocalDatabaseAdapter.getPersistedSession();
+          return null;
         }
 
         const { data: profileRow, error: profileError } = await supabase
@@ -88,6 +88,7 @@ export class AuthService {
       return LocalDatabaseAdapter.getPersistedSession();
     } catch (error) {
       console.error('[AuthService.getCurrentUser] Failed to fetch session:', error);
+      if (isSupabaseConfigured()) return null;
       return LocalDatabaseAdapter.getPersistedSession();
     }
   }
@@ -185,6 +186,8 @@ export class AuthService {
           email: normalizedEmail,
           password: params.password,
           options: {
+            emailRedirectTo:
+              typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined,
             data: {
               full_name: cleanedName,
               role: assignedRole
@@ -194,6 +197,14 @@ export class AuthService {
 
         if (error || !data.user) {
           throw new Error(error?.message ?? 'Registration failed.');
+        }
+
+        if (!data.session) {
+          const pending = new Error(
+            'Cuenta creada. Revisa tu correo para confirmar tu email y después inicia sesión.'
+          );
+          pending.name = 'EmailConfirmationRequired';
+          throw pending;
         }
 
         // Wait briefly for the AFTER INSERT trigger on_auth_user_created to populate public.profiles
@@ -209,6 +220,7 @@ export class AuthService {
           notifyLocalAuthListeners(dto);
           return dto;
         }
+        throw new Error('Cuenta creada, pero el perfil aún no está disponible. Inicia sesión de nuevo.');
       }
 
       // Trigger execution simulation in Local / Hybrid store
@@ -264,8 +276,7 @@ export class AuthService {
         data: { subscription }
       } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (!session?.user) {
-          const fallback = LocalDatabaseAdapter.getPersistedSession();
-          callback(fallback);
+          callback(null);
           return;
         }
 

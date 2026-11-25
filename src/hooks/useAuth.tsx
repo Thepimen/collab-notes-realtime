@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { AuthService } from '@/services/auth.service';
+import { isSupabaseConfigured } from '@/services/supabase.client';
 import type { AppRole, ProfileDTO } from '@/types/domain.types';
 
 interface AuthContextValue {
@@ -24,7 +25,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { readonly children: React.ReactNode }) {
   const [user, setUser] = useState<ProfileDTO | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const seedAccounts = AuthService.getSeedAccounts();
+  const seedAccounts: readonly ProfileDTO[] = isSupabaseConfigured()
+    ? []
+    : AuthService.getSeedAccounts();
 
   useEffect(() => {
     let isMounted = true;
