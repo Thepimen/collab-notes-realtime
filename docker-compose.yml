@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  collab-notes-web:
+    container_name: collab-notes-realtime-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://placeholder-project.supabase.co}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder}
+        NEXT_PUBLIC_ENABLE_DEMO_FALLBACK: ${NEXT_PUBLIC_ENABLE_DEMO_FALLBACK:-true}
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://placeholder-project.supabase.co}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder}
+      - NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=${NEXT_PUBLIC_ENABLE_DEMO_FALLBACK:-true}
+    restart: unless-stopped
