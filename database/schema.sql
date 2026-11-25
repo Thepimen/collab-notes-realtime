@@ -48,7 +48,7 @@ DECLARE
 BEGIN
     -- Safely parse requested role from raw_user_meta_data or default to 'editor'
     BEGIN
-        v_role := COALESCE((NEW.raw_user_meta_data->>'role')::public.app_role, 'editor');
+        v_role := 'editor'; -- never trust client-supplied role metadata
     EXCEPTION WHEN OTHERS THEN
         v_role := 'editor';
     END;
@@ -442,3 +442,23 @@ BEGIN
         END;
     END IF;
 END$$;
+
+
+-- -----------------------------------------------------------------------------
+-- 11. PRIVILEGE-ESCALATION GUARD (only platform admins may change profiles.role)
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.prevent_role_escalation()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NEW.role IS DISTINCT FROM OLD.role AND auth.uid() IS NOT NULL
+       AND NOT public.is_platform_admin(auth.uid()) THEN
+        NEW.role := OLD.role;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_profiles_prevent_role_escalation ON public.profiles;
+CREATE TRIGGER trg_profiles_prevent_role_escalation
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.prevent_role_escalation();
