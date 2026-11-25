@@ -1,0 +1,33 @@
+name: CI — Typecheck, OCC Concurrency Suite & Production Build
+
+on:
+  push:
+    branches: [main, develop, "feat/**", "ci/**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  verify:
+    name: Node 22 · Strict TS + OCC/RLS Tests + Next 15 Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Strict TypeScript verification
+        run: npx tsc --noEmit
+
+      - name: Run OCC 3-Way Merge & RLS 42501 test suite
+        run: npm run test:concurrency
+
+      - name: Verify Next.js 15 production build
+        run: npm run build
