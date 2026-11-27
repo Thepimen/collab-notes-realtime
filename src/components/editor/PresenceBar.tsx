@@ -19,26 +19,23 @@ function getInitials(name: string): string {
 
 export function PresenceBar({ activeUsers, currentUserId }: PresenceBarProps) {
   const remoteTyping = activeUsers.filter((u) => u.userId !== currentUserId && u.isTyping);
-  const anyTyping = remoteTyping.length > 0 ? remoteTyping : activeUsers.filter((u) => u.isTyping);
 
   return (
     <div
-      aria-label="Active collaborators in real-time room"
-      className="flex items-center gap-2.5"
+      aria-label="Personas conectadas en este documento"
+      className="flex items-center gap-2"
     >
-      {anyTyping.length > 0 && (
+      {remoteTyping.length > 0 && (
         <span
           aria-live="polite"
-          className="hidden items-center gap-1.5 rounded-full border border-hairline bg-surface px-2.5 py-0.5 font-mono text-[10px] text-secondary xl:inline-flex"
+          className="hidden items-center gap-1.5 rounded-full border border-hairline bg-surface px-2.5 py-0.5 text-[11px] text-secondary xl:inline-flex"
         >
           <span className="inline-flex gap-0.5" aria-hidden="true">
             <span className="h-1 w-1 animate-bounce rounded-full bg-terracotta" />
             <span className="h-1 w-1 animate-bounce rounded-full bg-terracotta [animation-delay:120ms]" />
             <span className="h-1 w-1 animate-bounce rounded-full bg-terracotta [animation-delay:240ms]" />
           </span>
-          <span>
-            {anyTyping[0]?.fullName.split(' ')[0]} typing…
-          </span>
+          <span>{remoteTyping[0]?.fullName.split(' ')[0]} está escribiendo…</span>
         </span>
       )}
 
@@ -46,23 +43,26 @@ export function PresenceBar({ activeUsers, currentUserId }: PresenceBarProps) {
         {activeUsers.map((peer) => {
           const isMe = peer.userId === currentUserId;
           const cleanName = peer.fullName.replace(/\s*\(.*\)/, '');
+          const roleLabel =
+            peer.role === 'viewer' ? 'Solo lectura' : peer.role === 'owner' ? 'Propietario' : 'Editor';
+
           return (
             <li
               key={peer.userId}
-              title={`${cleanName}${isMe ? ' (You)' : ''} · ${peer.role.toUpperCase()}${
-                peer.isTyping ? ' — typing live' : ''
+              title={`${cleanName}${isMe ? ' (Tú)' : ''} · ${roleLabel}${
+                peer.isTyping && !isMe ? ' — escribiendo' : ''
               }`}
               className="relative"
             >
               <span
-                className="flex h-7 w-7 items-center justify-center rounded-full font-mono text-[10px] font-semibold tracking-tight text-white ring-2 ring-canvas transition-transform hover:z-10 hover:scale-105"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold tracking-tight text-white ring-2 ring-canvas transition-transform hover:z-10 hover:scale-105"
                 style={{ backgroundColor: peer.color }}
               >
                 {getInitials(cleanName)}
               </span>
               <span
-                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-canvas ${
-                  peer.isTyping ? 'animate-ping bg-ochre' : 'bg-sage'
+                className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-canvas ${
+                  peer.isTyping && !isMe ? 'bg-ochre' : 'bg-sage'
                 }`}
                 aria-hidden="true"
               />

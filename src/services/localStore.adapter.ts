@@ -65,34 +65,34 @@ export const SEED_PROFILES: readonly ProfileDTO[] = [
 export const SEED_DOCUMENTS: readonly RawStoredDocument[] = [
   {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-    title: 'System Architecture RFC: Real-Time OCC & Hybrid JSONB',
+    title: 'Hoja de ruta del producto — Lanzamiento Q4',
     content: {
       blocks: [
         {
           id: 'blk-101',
           type: 'heading-1',
-          text: 'Distributed Real-Time Collaborative Engine',
+          text: 'Objetivos principales del trimestre',
           updatedBy: 'admin@collabnotes.io',
           updatedAt: '2026-11-22T18:00:00.000Z'
         },
         {
           id: 'blk-102',
           type: 'paragraph',
-          text: 'This document defines the hybrid relational + JSONB persistence strategy combined with Optimistic Concurrency Control (OCC) over Supabase Realtime WebSockets (Elixir/Phoenix).',
+          text: 'Este documento reúne las prioridades del equipo para cerrar el trimestre con una experiencia más rápida, clara y colaborativa para todos los usuarios.',
           updatedBy: 'admin@collabnotes.io',
           updatedAt: '2026-11-22T18:05:00.000Z'
         },
         {
           id: 'blk-103',
           type: 'heading-2',
-          text: 'Key Engineering Guarantees',
+          text: 'Entregables clave',
           updatedBy: 'elena.editor@collabnotes.io',
           updatedAt: '2026-11-22T18:10:00.000Z'
         },
         {
           id: 'blk-104',
           type: 'checklist',
-          text: 'Row Level Security (RLS) enforced at PostgreSQL engine level for owners, editors, and viewers.',
+          text: 'Permitir reordenar bloques arrastrando o con atajos Alt + ↑ / ↓.',
           checked: true,
           updatedBy: 'admin@collabnotes.io',
           updatedAt: '2026-11-22T18:12:00.000Z'
@@ -100,21 +100,23 @@ export const SEED_DOCUMENTS: readonly RawStoredDocument[] = [
         {
           id: 'blk-105',
           type: 'checklist',
-          text: 'Compare-And-Swap (CAS) version checking on every debounced UPDATE to prevent Lost Updates.',
+          text: 'Añadir plantillas rápidas, etiquetas editables y modo enfoque.',
           checked: true,
           updatedBy: 'elena.editor@collabnotes.io',
           updatedAt: '2026-11-22T18:15:00.000Z'
         },
         {
           id: 'blk-106',
-          type: 'code',
-          text: 'UPDATE public.documents SET content = $1, version = version + 1 WHERE id = $2 AND version = $3;',
+          type: 'callout',
+          text: 'Consejo: escribe "/" en una línea vacía para cambiar el estilo del bloque, o arrastra el icono izquierdo para reorganizar la nota.',
           updatedBy: 'admin@collabnotes.io',
           updatedAt: '2026-11-22T18:20:00.000Z'
         }
       ],
       metadata: {
-        tags: ['Architecture', 'PostgreSQL', 'WebSockets', 'OCC'],
+        tags: ['Producto', 'Roadmap', 'Equipo'],
+        icon: '🚀',
+        pinned: true,
         lastEditedBy: 'elena.editor@collabnotes.io'
       }
     },
@@ -125,33 +127,34 @@ export const SEED_DOCUMENTS: readonly RawStoredDocument[] = [
   },
   {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
-    title: 'Q4 Security Audit & RLS Verification Playbook',
+    title: 'Guía de estilo y buenas prácticas del equipo',
     content: {
       blocks: [
         {
           id: 'blk-201',
           type: 'heading-1',
-          text: 'PostgreSQL 15+ Security & Access Control Audit',
+          text: 'Principios de escritura clara',
           updatedBy: 'admin@collabnotes.io',
           updatedAt: '2026-11-22T16:00:00.000Z'
         },
         {
           id: 'blk-202',
           type: 'quote',
-          text: 'Never delegate data authorization exclusively to the frontend UI; enforce perimeter policies via PostgreSQL Row Level Security.',
+          text: 'La simplicidad es quitar lo obvio y añadir lo significativo.',
           updatedBy: 'admin@collabnotes.io',
           updatedAt: '2026-11-22T16:10:00.000Z'
         },
         {
           id: 'blk-203',
           type: 'paragraph',
-          text: 'Collaborators with the viewer role can observe real-time presence and live block updates via room:doc_{id}, but any direct mutation attempt is rejected both by the UI and by the documents_update_owner_or_editor RLS policy.',
+          text: 'Comparte documentos con permiso de lectura cuando quieras recoger revisiones sin arriesgar cambios accidentales en el borrador principal.',
           updatedBy: 'marco.viewer@collabnotes.io',
           updatedAt: '2026-11-22T16:30:00.000Z'
         }
       ],
       metadata: {
-        tags: ['Security', 'RLS', 'Audit'],
+        tags: ['Guía', 'Equipo'],
+        icon: '📚',
         lastEditedBy: 'admin@collabnotes.io'
       }
     },
@@ -162,34 +165,35 @@ export const SEED_DOCUMENTS: readonly RawStoredDocument[] = [
   },
   {
     id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3',
-    title: 'Product Design Sprint: Accessible UI & Mobile-First Tokens',
+    title: 'Notas del sprint de diseño y experiencia de usuario',
     content: {
       blocks: [
         {
           id: 'blk-301',
           type: 'heading-1',
-          text: 'UI/UX Guidelines & WCAG 2.1 AA Compliance',
+          text: 'Resumen de la sesión semanal',
           updatedBy: 'elena.editor@collabnotes.io',
           updatedAt: '2026-11-22T19:00:00.000Z'
         },
         {
           id: 'blk-302',
           type: 'paragraph',
-          text: 'All interactive regions expose semantic ARIA roles, aria-labelledby bindings, live toast announcements, skeleton loaders, and pending changes navigation guards.',
+          text: 'Priorizamos una interfaz serena, atajos de teclado fluidos y un índice navegable para notas extensas.',
           updatedBy: 'elena.editor@collabnotes.io',
           updatedAt: '2026-11-22T19:15:00.000Z'
         },
         {
           id: 'blk-303',
           type: 'checklist',
-          text: 'Preserve returnUrl query parameter when redirecting unauthenticated sessions.',
+          text: 'Validar la exportación a Markdown e impresión limpia en PDF.',
           checked: true,
           updatedBy: 'elena.editor@collabnotes.io',
           updatedAt: '2026-11-22T19:20:00.000Z'
         }
       ],
       metadata: {
-        tags: ['UI/UX', 'Accessibility', 'TailwindCSS'],
+        tags: ['Diseño', 'Sprint'],
+        icon: '✨',
         lastEditedBy: 'elena.editor@collabnotes.io'
       }
     },

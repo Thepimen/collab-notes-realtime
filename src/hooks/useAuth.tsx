@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { AuthService } from '@/services/auth.service';
 import { isSupabaseConfigured } from '@/services/supabase.client';
-import type { AppRole, ProfileDTO } from '@/types/domain.types';
+import type { AppRole, ProfileDTO, SignUpResultDTO } from '@/types/domain.types';
 
 interface AuthContextValue {
   readonly user: ProfileDTO | null;
@@ -16,18 +16,34 @@ interface AuthContextValue {
     readonly password: string;
     readonly fullName: string;
     readonly role?: AppRole;
-  }) => Promise<ProfileDTO>;
+  }) => Promise<SignUpResultDTO>;
   readonly signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isSameProfile(a: ProfileDTO | null, b: ProfileDTO | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.email === b.email &&
+    a.fullName === b.fullName &&
+    a.role === b.role &&
+    a.avatarUrl === b.avatarUrl
+  );
+}
+
 export function AuthProvider({ children }: { readonly children: React.ReactNode }) {
-  const [user, setUser] = useState<ProfileDTO | null>(null);
+  const [user, setUserState] = useState<ProfileDTO | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const seedAccounts: readonly ProfileDTO[] = isSupabaseConfigured()
     ? []
     : AuthService.getSeedAccounts();
+
+  const setUserStable = useCallback((next: ProfileDTO | null) => {
+    setUserState((prev) => (isSameProfile(prev, next) ? prev : next ? { ...next } : null));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,7 +52,7 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
       try {
         const currentUser = await AuthService.getCurrentUser();
         if (isMounted) {
-          setUser(currentUser ? { ...currentUser } : null);
+          setUserStable(currentUser);
         }
       } catch (error) {
         console.error('[useAuth] Initial session check failed:', error);
@@ -51,7 +67,7 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
 
     const unsubscribe = AuthService.onAuthStateChange((nextUser) => {
       if (isMounted) {
-        setUser(nextUser ? { ...nextUser } : null);
+        setUserStable(nextUser);
         setIsLoading(false);
       }
     });
@@ -60,19 +76,25 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [setUserStable]);
 
-  const signIn = useCallback(async (email: string, password: string): Promise<ProfileDTO> => {
-    const profile = await AuthService.signInWithPassword({ email, password });
-    setUser({ ...profile });
-    return profile;
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<ProfileDTO> => {
+      const profile = await AuthService.signInWithPassword({ email, password });
+      setUserStable(profile);
+      return profile;
+    },
+    [setUserStable]
+  );
 
-  const switchSandboxUser = useCallback((aliasOrEmail: string): ProfileDTO => {
-    const profile = AuthService.switchTabSandboxUser(aliasOrEmail);
-    setUser({ ...profile });
-    return profile;
-  }, []);
+  const switchSandboxUser = useCallback(
+    (aliasOrEmail: string): ProfileDTO => {
+      const profile = AuthService.switchTabSandboxUser(aliasOrEmail);
+      setUserStable(profile);
+      return profile;
+    },
+    [setUserStable]
+  );
 
   const signUp = useCallback(
     async (params: {
@@ -80,18 +102,20 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
       readonly password: string;
       readonly fullName: string;
       readonly role?: AppRole;
-    }): Promise<ProfileDTO> => {
-      const profile = await AuthService.signUp(params);
-      setUser({ ...profile });
-      return profile;
+    }): Promise<SignUpResultDTO> => {
+      const result = await AuthService.signUp(params);
+      if (result.status === 'AUTHENTICATED') {
+        setUserStable(result.profile);
+      }
+      return result;
     },
-    []
+    [setUserStable]
   );
 
   const signOut = useCallback(async (): Promise<void> => {
     await AuthService.signOut();
-    setUser(null);
-  }, []);
+    setUserStable(null);
+  }, [setUserStable]);
 
   return (
     <AuthContext.Provider

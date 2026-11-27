@@ -2,10 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Database,
   Download,
   FilePlus2,
   FileText,
+  ListTree,
   Moon,
   Search,
   Sun,
@@ -23,7 +23,7 @@ interface CommandPaletteProps {
   readonly seedAccounts: readonly ProfileDTO[];
   readonly onSelectDocument: (docId: string) => void;
   readonly onCreateDocument: () => void;
-  readonly onToggleInspector?: () => void;
+  readonly onToggleDetails?: () => void;
   readonly onExportMarkdown?: () => void;
   readonly onSwitchUser: (email: string) => void;
 }
@@ -46,7 +46,7 @@ export function CommandPalette({
   seedAccounts,
   onSelectDocument,
   onCreateDocument,
-  onToggleInspector,
+  onToggleDetails,
   onExportMarkdown,
   onSwitchUser
 }: CommandPaletteProps) {
@@ -66,9 +66,9 @@ export function CommandPalette({
 
     items.push({
       id: 'new-doc',
-      group: 'Workspace',
-      label: 'Create New Collaborative Note',
-      hint: 'New',
+      group: 'Acciones rápidas',
+      label: 'Crear una nota nueva',
+      hint: 'Nueva',
       icon: <FilePlus2 className="h-3.5 w-3.5 text-terracotta" />,
       action: () => {
         onClose();
@@ -76,16 +76,16 @@ export function CommandPalette({
       }
     });
 
-    if (onToggleInspector) {
+    if (onToggleDetails) {
       items.push({
-        id: 'toggle-inspector',
-        group: 'Workspace',
-        label: 'Toggle Precision Inspector (JSONB · OCC · RLS)',
-        hint: '⌘I',
-        icon: <Database className="h-3.5 w-3.5 text-secondary" />,
+        id: 'toggle-details',
+        group: 'Acciones rápidas',
+        label: 'Ver índice, estadísticas y actividad',
+        hint: 'Panel',
+        icon: <ListTree className="h-3.5 w-3.5 text-secondary" />,
         action: () => {
           onClose();
-          onToggleInspector();
+          onToggleDetails();
         }
       });
     }
@@ -93,8 +93,8 @@ export function CommandPalette({
     if (activeDocument && onExportMarkdown) {
       items.push({
         id: 'export-md',
-        group: 'Workspace',
-        label: `Export "${activeDocument.title}" as Markdown (.md)`,
+        group: 'Acciones rápidas',
+        label: `Exportar "${activeDocument.title}" a Markdown (.md)`,
         hint: '.MD',
         icon: <Download className="h-3.5 w-3.5 text-sage" />,
         action: () => {
@@ -106,12 +106,9 @@ export function CommandPalette({
 
     items.push({
       id: 'toggle-theme',
-      group: 'Appearance',
-      label:
-        theme === 'light'
-          ? 'Switch to Obsidian Ink (Dark Mode)'
-          : 'Switch to Warm Paper (Editorial Light Mode)',
-      hint: theme === 'light' ? 'Dark' : 'Light',
+      group: 'Apariencia',
+      label: theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro',
+      hint: theme === 'light' ? 'Oscuro' : 'Claro',
       icon:
         theme === 'light' ? (
           <Moon className="h-3.5 w-3.5 text-secondary" />
@@ -126,11 +123,12 @@ export function CommandPalette({
 
     seedAccounts.forEach((acc) => {
       const isCurrent = acc.id === currentUser?.id;
+      const cleanName = acc.fullName.replace(/\s*\(.*\)/, '');
       items.push({
         id: `switch-${acc.id}`,
-        group: 'Sandbox Tab Identity (Isolated Session)',
-        label: `${acc.fullName}${isCurrent ? ' — Active' : ''}`,
-        hint: acc.role.toUpperCase(),
+        group: 'Perfiles de prueba',
+        label: `${cleanName}${isCurrent ? ' — Activo' : ''}`,
+        hint: acc.role === 'viewer' ? 'Lectura' : 'Editor',
         icon: <UserCheck className="h-3.5 w-3.5 text-terracotta" />,
         action: () => {
           onClose();
@@ -142,9 +140,9 @@ export function CommandPalette({
     documents.forEach((doc) => {
       items.push({
         id: `doc-${doc.id}`,
-        group: 'Documents',
-        label: doc.title,
-        hint: `v${doc.version}`,
+        group: 'Tus notas',
+        label: doc.title || 'Nota sin título',
+        hint: 'Abrir',
         icon: <FileText className="h-3.5 w-3.5 text-secondary" />,
         action: () => {
           onClose();
@@ -170,7 +168,7 @@ export function CommandPalette({
     onExportMarkdown,
     onSelectDocument,
     onSwitchUser,
-    onToggleInspector,
+    onToggleDetails,
     query,
     seedAccounts,
     theme,
@@ -209,7 +207,7 @@ export function CommandPalette({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Command Palette"
+      aria-label="Búsqueda rápida y comandos"
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-[2px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -217,7 +215,7 @@ export function CommandPalette({
     >
       <div
         onKeyDown={handleKeyDown}
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-hairline bg-elevated text-ink shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-hairline bg-elevated text-ink shadow-2xl"
       >
         <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-3">
           <Search className="h-4 w-4 text-muted" aria-hidden="true" />
@@ -226,7 +224,7 @@ export function CommandPalette({
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Jump to note, switch sandbox role, export Markdown…"
+            placeholder="Ir a una nota, crear documento o buscar comando…"
             className="flex-1 bg-transparent text-sm text-ink placeholder-muted focus:outline-none"
           />
           <kbd className="rounded border border-hairline bg-surface px-1.5 py-0.5 font-mono text-[10px] text-muted">
@@ -236,8 +234,8 @@ export function CommandPalette({
 
         <div className="max-h-80 overflow-y-auto p-1.5">
           {commands.length === 0 ? (
-            <p className="py-8 text-center font-mono text-xs text-muted">
-              No matching commands or notes.
+            <p className="py-8 text-center text-xs text-muted">
+              No hay resultados para &ldquo;{query}&rdquo;.
             </p>
           ) : (
             commands.map((cmd, idx) => {
@@ -248,7 +246,7 @@ export function CommandPalette({
               return (
                 <React.Fragment key={cmd.id}>
                   {showGroup && (
-                    <div className="px-2.5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-muted">
+                    <div className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
                       {cmd.group}
                     </div>
                   )}
@@ -264,7 +262,7 @@ export function CommandPalette({
                       {cmd.icon}
                       <span className="truncate font-medium">{cmd.label}</span>
                     </span>
-                    <span className="shrink-0 rounded border border-hairline bg-canvas px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-muted">
+                    <span className="shrink-0 rounded border border-hairline bg-canvas px-1.5 py-0.5 text-[10px] text-muted">
                       {cmd.hint}
                     </span>
                   </button>

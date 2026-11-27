@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none">
+  <defs>
+    <linearGradient id="cn-apple-bg" x1="16" y1="12" x2="164" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D9573B" />
+      <stop offset="100%" stop-color="#A83820" />
+    </linearGradient>
+    <linearGradient id="cn-apple-paper" x1="46" y1="34" x2="134" y2="146" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="100%" stop-color="#F2ECE1" />
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#cn-apple-bg)" />
+  <path
+    d="M48 44C48 38.477 52.477 34 58 34H103.5C106.15 34 108.7 35.054 110.57 36.929L132.07 58.429C133.95 60.304 135 62.848 135 65.5V136C135 141.523 130.523 146 125 146H58C52.477 146 48 141.523 48 136V44Z"
+    fill="url(#cn-apple-paper)"
+  />
+  <path d="M104 34.5V58C104 61.866 107.134 65 111 65H134.5L104 34.5Z" fill="#DFD5C5" />
+  <rect x="65" y="76" width="46" height="9" rx="4.5" fill="#1A1917" />
+  <rect x="65" y="96" width="52" height="8" rx="4" fill="#6B665E" fill-opacity="0.72" />
+  <rect x="65" y="114" width="32" height="8" rx="4" fill="#6B665E" fill-opacity="0.52" />
+  <circle cx="131" cy="131" r="21" fill="#2A6F4E" stroke="#FAF8F5" stroke-width="7" />
+  <circle cx="131" cy="131" r="6" fill="#FFFDF9" />
+</svg>

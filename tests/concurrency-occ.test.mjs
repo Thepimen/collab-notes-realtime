@@ -402,4 +402,45 @@ describe('Optimistic Concurrency Control (OCC) & JSONB Block Synchronization', (
     assert.equal(unchanged.version, 1);
     assert.equal(unchanged.title, 'Shared Architecture Specification');
   });
+
+  it('5. Keeps version stable across repeated edits by the same active session and only increments version on exit', () => {
+    const db = new SimulatedPostgresEngine();
+    const sessionId = 'sess-single-user-1';
+    const initialSnap = db.readSnapshot();
+    assert.equal(initialSnap.version, 1);
+
+    // Simulate 3 draft auto-saves inside the same editing session (bumpVersion = false)
+    for (let step = 1; step <= 3; step += 1) {
+      db.document = {
+        ...db.document,
+        content: {
+          ...db.document.content,
+          blocks: db.document.content.blocks.map((b, i) =>
+            i === 0 ? { ...b, text: `Draft revision ${step}` } : b
+          ),
+          metadata: {
+            ...db.document.content.metadata,
+            lastSessionId: sessionId,
+            lastSaveId: `sv-${step}`
+          }
+        }
+      };
+      // Version must remain 1 during active session edits (no self-merge, no version inflation)
+      assert.equal(db.document.version, 1);
+    }
+
+    // Now user leaves the note -> finalizes session once (v1 -> v2)
+    const exitCommit = db.atomicUpdateOCC({
+      actorId: 'user-admin',
+      actorEmail: 'admin@collabnotes.io',
+      title: db.document.title,
+      content: db.document.content,
+      expectedVersion: 1,
+      baseSnapshot: initialSnap
+    });
+
+    assert.equal(exitCommit.wasMerged, false);
+    assert.equal(exitCommit.newVersion, 2);
+    assert.equal(db.readSnapshot().content.blocks[0].text, 'Draft revision 3');
+  });
 });

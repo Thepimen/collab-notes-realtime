@@ -91,18 +91,12 @@ body {
   border-radius: 999px;
 }
 
-@keyframes occPulse {
-  0% {
-    transform: scale(1);
+@media print {
+  .no-print {
+    display: none !important;
   }
-  40% {
-    transform: scale(1.045);
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
   }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.animate-occ-bump {
-  animation: occPulse 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }

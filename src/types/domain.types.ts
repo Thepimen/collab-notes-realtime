@@ -10,10 +10,17 @@ export type CollaboratorPermission = 'editor' | 'viewer';
 export type BlockType =
   | 'heading-1'
   | 'heading-2'
+  | 'heading-3'
   | 'paragraph'
+  | 'bullet'
   | 'checklist'
+  | 'callout'
   | 'code'
-  | 'quote';
+  | 'quote'
+  | 'image'
+  | 'divider';
+
+export type ImageBlockSize = 'compact' | 'normal' | 'full';
 
 export type SyncStatus =
   | 'SYNCED'
@@ -33,11 +40,26 @@ export interface ProfileDTO {
   readonly updatedAt: string;
 }
 
+export type SignUpResultDTO =
+  | {
+      readonly status: 'AUTHENTICATED';
+      readonly profile: ProfileDTO;
+      readonly message: string;
+    }
+  | {
+      readonly status: 'CONFIRMATION_REQUIRED';
+      readonly email: string;
+      readonly message: string;
+    };
+
 export interface DocumentBlockDTO {
   readonly id: string;
   readonly type: BlockType;
   readonly text: string;
   readonly checked?: boolean;
+  readonly imageUrl?: string;
+  readonly imageCaption?: string;
+  readonly imageSize?: ImageBlockSize;
   readonly updatedBy: string;
   readonly updatedAt: string;
 }
@@ -45,6 +67,10 @@ export interface DocumentBlockDTO {
 export interface DocumentMetadataDTO {
   readonly tags?: readonly string[];
   readonly lastEditedBy?: string;
+  readonly pinned?: boolean;
+  readonly icon?: string;
+  readonly lastSessionId?: string;
+  readonly lastSaveId?: string;
 }
 
 export interface DocumentContentDTO {
@@ -87,6 +113,15 @@ export interface UpdateDocumentOCCRequestDTO {
   readonly baseContent?: DocumentContentDTO;
   readonly baseTitle?: string;
   readonly actorEmail: string;
+  readonly currentSnapshot?: DocumentDTO;
+  /**
+   * When false (active editing session), persists content atomically WITHOUT incrementing
+   * `version`. When true (closing/leaving the note), commits the session and increments `version` once.
+   */
+  readonly bumpVersion?: boolean;
+  readonly clientSessionId?: string;
+  readonly clientSaveId?: string;
+  readonly expectedRemoteSaveId?: string;
 }
 
 export interface OptimisticUpdateResultDTO {
@@ -118,6 +153,7 @@ export interface PresenceUserDTO {
 export interface BroadcastContentDeltaDTO {
   readonly documentId: string;
   readonly senderId: string;
+  readonly senderSessionId?: string;
   readonly senderEmail: string;
   readonly senderName: string;
   readonly title: string;
@@ -143,4 +179,3 @@ export interface OccTransactionEntryDTO {
   readonly committedVersion: number;
   readonly summary: string;
 }
-
