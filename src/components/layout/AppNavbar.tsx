@@ -121,9 +121,9 @@ export function AppNavbar({
           role="dialog"
           aria-modal="true"
           aria-labelledby="pending-changes-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
+          className="animate-backdrop-in fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
         >
-          <div className="w-full max-w-md rounded-2xl border border-hairline bg-elevated p-6 text-ink shadow-2xl">
+          <div className="animate-modal-in w-full max-w-md rounded-2xl border border-hairline bg-elevated p-6 text-ink shadow-2xl">
             <div className="flex items-center gap-2.5 text-ochre">
               <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
               <h2 id="pending-changes-dialog-title" className="font-serif text-xl text-ink">

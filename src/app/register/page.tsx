@@ -5,10 +5,14 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Eye,
+  EyeOff,
   MailCheck,
   Moon,
+  Sparkles,
   Sun
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +34,7 @@ function RegisterContent() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState<{
     readonly email: string;
@@ -111,190 +116,279 @@ function RegisterContent() {
   };
 
   return (
-    <main className="relative flex min-h-screen flex-col justify-center bg-canvas px-6 py-12 text-ink">
-      <div className="absolute right-6 top-6 sm:right-10 sm:top-8">
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-10 text-ink sm:px-6">
+      <div className="mb-5 flex w-full max-w-[960px] items-center justify-between animate-reveal-up">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-secondary transition hover:bg-surface hover:text-ink"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>Volver al inicio</span>
+        </Link>
+
         <button
           type="button"
           onClick={toggleTheme}
           aria-label="Cambiar tema de color"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-secondary transition hover:border-borderstrong hover:text-ink"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-hairline bg-elevated px-3 py-1.5 text-xs font-medium text-secondary transition hover:border-borderstrong hover:text-ink"
         >
           {theme === 'light' ? (
             <>
               <Moon className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Modo oscuro</span>
+              <span>Oscuro</span>
             </>
           ) : (
             <>
               <Sun className="h-3.5 w-3.5 text-ochre" aria-hidden="true" />
-              <span>Modo claro</span>
+              <span>Claro</span>
             </>
           )}
         </button>
       </div>
 
-      <div className="mx-auto w-full max-w-md rounded-2xl border border-hairline bg-elevated p-8 shadow-sm">
-        <div className="mb-5 flex items-center gap-2.5">
-          <BrandMark size="md" />
-          <span className="font-serif text-2xl tracking-tight text-ink">CollabNotes</span>
-        </div>
+      {/* Framed Two-Section Split Card */}
+      <div className="animate-reveal-scale grid w-full max-w-[960px] grid-cols-1 gap-4 rounded-[32px] border border-hairline bg-elevated p-3.5 shadow-2xl sm:p-5 lg:grid-cols-12">
+        {/* LEFT SECTION: Fluted-Orange Brand Panel */}
+        <section
+          aria-label="Crea tu espacio en CollabNotes"
+          className="fluted-orange flex min-h-[280px] flex-col justify-between rounded-[24px] p-8 text-white sm:p-10 lg:col-span-6 lg:min-h-[540px]"
+        >
+          <div className="relative z-10">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Gratis para empezar
+            </span>
 
-        {confirmationSent ? (
-          <div role="status" className="space-y-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sage-soft text-sage">
-              <MailCheck className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <div>
-              <h1 className="font-serif text-3xl text-ink">Revisa tu correo</h1>
-              <p className="mt-2 text-sm leading-relaxed text-secondary">
-                {confirmationSent.message}
-              </p>
-            </div>
-            <div className="rounded-xl border border-sage/30 bg-sage-soft p-3.5 text-xs text-sage">
-              <div className="flex items-center gap-2 font-semibold">
-                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Cuenta registrada para {confirmationSent.email}</span>
-              </div>
-              <p className="mt-1 opacity-90">
-                Una vez confirmado el enlace en tu correo, podrás entrar directamente a tus notas.
-              </p>
-            </div>
-            <Link
-              href={`/login?registered=1&returnUrl=${encodeURIComponent(returnUrl)}`}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-terracotta-hover"
-            >
-              <span>Ir a iniciar sesión</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </div>
-        ) : (
-          <>
-            <h1 className="font-serif text-3xl text-ink">Crear cuenta</h1>
-            <p className="mt-1 text-xs text-secondary">
-              Empieza a organizar tus notas y colaborar con otras personas en segundos.
+            <h1 className="mt-5 text-3xl font-extrabold leading-[1.12] tracking-tight sm:text-[38px]">
+              Tu nuevo espacio de{' '}
+              <span className="relative inline-block">
+                escritura viva.
+                <svg
+                  viewBox="0 0 210 14"
+                  fill="none"
+                  aria-hidden="true"
+                  className="absolute -bottom-2 left-0 w-full"
+                >
+                  <path
+                    d="M3 10.5C48 2.5 142 1.5 207 9.5"
+                    stroke="#FFFFFF"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+
+            <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/90">
+              Crea notas en blanco en un clic, añade imágenes copiando y pegando y comparte tus
+              proyectos con quien necesites.
             </p>
+          </div>
 
-            {formError && (
-              <div
-                role="alert"
-                className="mt-4 flex items-start gap-2.5 rounded-xl border border-terracotta/40 bg-terracotta-soft p-3 text-xs text-terracotta"
-              >
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{formError}</span>
-              </div>
-            )}
+          <ul className="relative z-10 mt-8 space-y-2.5 text-xs font-medium text-white/95">
+            <li className="flex items-center gap-2.5 rounded-xl bg-white/12 px-3.5 py-2.5 backdrop-blur-sm">
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Edición colaborativa en directo sin sobrescribir cambios</span>
+            </li>
+            <li className="flex items-center gap-2.5 rounded-xl bg-white/12 px-3.5 py-2.5 backdrop-blur-sm">
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Arrastra bloques, inserta fotos y exporta a PDF o Markdown</span>
+            </li>
+          </ul>
+        </section>
 
-            <form onSubmit={(e) => void handleRegister(e)} className="mt-6 space-y-4">
-              <div>
-                <label
-                  htmlFor="register-fullname"
-                  className="block text-xs font-medium text-secondary"
+        {/* RIGHT SECTION: Clean Registration Form */}
+        <section
+          aria-labelledby="register-heading"
+          className="flex flex-col justify-center px-4 py-6 sm:px-10 lg:col-span-6 lg:py-8"
+        >
+          <div className="mx-auto w-full max-w-[360px]">
+            {confirmationSent ? (
+              <div role="status" className="animate-reveal-up space-y-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sage-soft text-sage">
+                  <MailCheck className="h-7 w-7" aria-hidden="true" />
+                </div>
+                <div>
+                  <h2 id="register-heading" className="text-2xl font-extrabold text-ink">
+                    Revisa tu correo
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-secondary">
+                    {confirmationSent.message}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-sage/30 bg-sage-soft p-3.5 text-left text-xs text-sage">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>Cuenta registrada para {confirmationSent.email}</span>
+                  </div>
+                  <p className="mt-1 opacity-90">
+                    Una vez abierto el enlace de confirmación, podrás acceder a tus notas.
+                  </p>
+                </div>
+                <Link
+                  href={`/login?registered=1&returnUrl=${encodeURIComponent(returnUrl)}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-4 py-3 text-sm font-semibold text-white transition hover:bg-terracotta-hover"
                 >
-                  Nombre completo
-                </label>
-                <input
-                  id="register-fullname"
-                  type="text"
-                  required
-                  autoComplete="name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="mt-1.5 w-full rounded-xl border border-hairline bg-canvas px-3.5 py-2.5 text-sm text-ink placeholder-muted focus:border-terracotta focus:outline-none"
-                />
+                  <span>Ir a iniciar sesión</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </div>
-
-              <div>
-                <label
-                  htmlFor="register-email"
-                  className="block text-xs font-medium text-secondary"
+            ) : (
+              <>
+                <div
+                  style={{ animationDelay: '70ms' }}
+                  className="animate-reveal-up flex flex-col items-center text-center"
                 >
-                  Correo electrónico
-                </label>
-                <input
-                  id="register-email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@correo.com"
-                  className="mt-1.5 w-full rounded-xl border border-hairline bg-canvas px-3.5 py-2.5 text-sm text-ink placeholder-muted focus:border-terracotta focus:outline-none"
-                />
-              </div>
+                  <Link href="/" className="inline-flex items-center gap-2.5">
+                    <BrandMark size="md" />
+                    <span className="font-serif text-2xl tracking-tight text-ink">
+                      CollabNotes
+                    </span>
+                  </Link>
+                  <h2
+                    id="register-heading"
+                    className="mt-5 text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]"
+                  >
+                    Crear cuenta
+                  </h2>
+                  <p className="mt-1 text-xs text-secondary">
+                    Empieza a organizar tus notas en segundos
+                  </p>
+                </div>
 
-              <div>
-                <label
-                  htmlFor="register-password"
-                  className="block text-xs font-medium text-secondary"
-                >
-                  Contraseña
-                </label>
-                <input
-                  id="register-password"
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="mt-1.5 w-full rounded-xl border border-hairline bg-canvas px-3.5 py-2.5 text-sm text-ink placeholder-muted focus:border-terracotta focus:outline-none"
-                />
-                {passwordStrength && (
-                  <div className="mt-2">
-                    <div className="h-1 w-full overflow-hidden rounded-full bg-surface">
-                      <div
-                        className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-                        style={{ width: passwordStrength.width }}
-                      />
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted">{passwordStrength.label}</p>
+                {formError && (
+                  <div
+                    role="alert"
+                    className="animate-reveal-up mt-4 flex items-start gap-2.5 rounded-xl border border-terracotta/40 bg-terracotta-soft p-3 text-xs text-terracotta"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{formError}</span>
                   </div>
                 )}
-              </div>
 
-              <div>
-                <label
-                  htmlFor="register-confirm-password"
-                  className="block text-xs font-medium text-secondary"
+                <form
+                  onSubmit={(e) => void handleRegister(e)}
+                  style={{ animationDelay: '130ms' }}
+                  className="animate-reveal-up mt-6 space-y-3.5"
                 >
-                  Confirmar contraseña
-                </label>
-                <input
-                  id="register-confirm-password"
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repite tu contraseña"
-                  className="mt-1.5 w-full rounded-xl border border-hairline bg-canvas px-3.5 py-2.5 text-sm text-ink placeholder-muted focus:border-terracotta focus:outline-none"
-                />
-              </div>
+                  <div>
+                    <label htmlFor="register-fullname" className="sr-only">
+                      Nombre completo
+                    </label>
+                    <input
+                      id="register-fullname"
+                      type="text"
+                      required
+                      autoComplete="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Nombre completo"
+                      className="w-full rounded-xl border border-transparent bg-surface px-4 py-3 text-sm text-ink placeholder-muted transition focus:border-terracotta focus:bg-canvas focus:outline-none"
+                    />
+                  </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-terracotta-hover disabled:opacity-50"
-              >
-                <span>{isSubmitting ? 'Creando cuenta…' : 'Crear mi cuenta'}</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </form>
+                  <div>
+                    <label htmlFor="register-email" className="sr-only">
+                      Correo electrónico
+                    </label>
+                    <input
+                      id="register-email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Correo electrónico"
+                      className="w-full rounded-xl border border-transparent bg-surface px-4 py-3 text-sm text-ink placeholder-muted transition focus:border-terracotta focus:bg-canvas focus:outline-none"
+                    />
+                  </div>
 
-            <p className="mt-6 border-t border-hairline pt-4 text-center text-xs text-secondary">
-              ¿Ya tienes cuenta?{' '}
-              <Link
-                href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
-                className="font-semibold text-terracotta underline-offset-4 hover:underline"
-              >
-                Iniciar sesión
-              </Link>
-            </p>
-          </>
-        )}
+                  <div>
+                    <div className="relative">
+                      <label htmlFor="register-password" className="sr-only">
+                        Contraseña
+                      </label>
+                      <input
+                        id="register-password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Contraseña (mín. 6 caracteres)"
+                        className="w-full rounded-xl border border-transparent bg-surface py-3 pl-4 pr-11 text-sm text-ink placeholder-muted transition focus:border-terracotta focus:bg-canvas focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted transition hover:text-ink"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+
+                    {passwordStrength && (
+                      <div className="mt-2 px-1">
+                        <div className="h-1 w-full overflow-hidden rounded-full bg-surface">
+                          <div
+                            className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                            style={{ width: passwordStrength.width }}
+                          />
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted">{passwordStrength.label}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="register-confirm-password" className="sr-only">
+                      Confirmar contraseña
+                    </label>
+                    <input
+                      id="register-confirm-password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirmar contraseña"
+                      className="w-full rounded-xl border border-transparent bg-surface px-4 py-3 text-sm text-ink placeholder-muted transition focus:border-terracotta focus:bg-canvas focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-4 py-3 text-sm font-semibold text-white shadow-md shadow-terracotta/20 transition hover:bg-terracotta-hover active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <span>{isSubmitting ? 'Creando cuenta…' : 'Crear mi cuenta'}</span>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </form>
+
+                <p
+                  style={{ animationDelay: '200ms' }}
+                  className="animate-reveal-up mt-6 text-center text-xs text-secondary"
+                >
+                  ¿Ya tienes cuenta?{' '}
+                  <Link
+                    href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
+                    className="font-semibold text-terracotta underline-offset-4 hover:underline"
+                  >
+                    Iniciar sesión
+                  </Link>
+                </p>
+              </>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   );

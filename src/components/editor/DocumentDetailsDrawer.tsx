@@ -73,7 +73,7 @@ export function DocumentDetailsDrawer({
   return (
     <aside
       aria-label="Detalles y esquema de la nota"
-      className="no-print flex h-[calc(100vh-48px)] w-full shrink-0 flex-col border-l border-hairline bg-surface md:w-[300px] lg:w-[325px]"
+      className="animate-drawer-in no-print flex h-[calc(100vh-48px)] w-full shrink-0 flex-col border-l border-hairline bg-surface md:w-[300px] lg:w-[325px]"
     >
       {/* Header */}
       <div className="flex h-11 items-center justify-between border-b border-hairline px-4">

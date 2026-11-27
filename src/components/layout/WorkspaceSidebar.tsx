@@ -94,7 +94,7 @@ export function WorkspaceSidebar({
   return (
     <aside
       aria-label="Navegación de notas"
-      className="no-print hidden h-screen w-[248px] shrink-0 flex-col border-r border-hairline bg-surface md:flex"
+      className="animate-reveal-up no-print hidden h-screen w-[248px] shrink-0 flex-col border-r border-hairline bg-surface md:flex"
     >
       {/* Brand Header */}
       <div className="flex h-12 items-center justify-between border-b border-hairline px-4">

@@ -72,12 +72,12 @@ export function ShareDocumentModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-document-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
+      className="animate-backdrop-in fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-2xl border border-hairline bg-elevated p-6 text-ink shadow-2xl">
+      <div className="animate-modal-in w-full max-w-lg rounded-2xl border border-hairline bg-elevated p-6 text-ink shadow-2xl">
         <div className="flex items-start justify-between border-b border-hairline pb-4">
           <div>
             <h2 id="share-document-modal-title" className="font-serif text-2xl text-ink">

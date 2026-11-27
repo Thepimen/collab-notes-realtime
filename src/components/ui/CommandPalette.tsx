@@ -208,14 +208,14 @@ export function CommandPalette({
       role="dialog"
       aria-modal="true"
       aria-label="Búsqueda rápida y comandos"
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-[2px]"
+      className="animate-backdrop-in fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-[2px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         onKeyDown={handleKeyDown}
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-hairline bg-elevated text-ink shadow-2xl"
+        className="animate-modal-in w-full max-w-lg overflow-hidden rounded-2xl border border-hairline bg-elevated text-ink shadow-2xl"
       >
         <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-3">
           <Search className="h-4 w-4 text-muted" aria-hidden="true" />
