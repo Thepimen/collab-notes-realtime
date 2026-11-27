@@ -39,7 +39,7 @@ export function ToastContainer() {
           <div
             key={toast.id}
             role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
-            className={`flex items-start gap-3 rounded-lg border border-hairline border-l-[3px] bg-elevated px-3.5 py-3 text-ink shadow-lg transition-all ${styleMap.accent}`}
+            className={`animate-toast-in flex items-start gap-3 rounded-lg border border-hairline border-l-[3px] bg-elevated px-3.5 py-3 text-ink shadow-lg transition-all ${styleMap.accent}`}
           >
             <div className="mt-0.5">{styleMap.icon}</div>
             <div className="min-w-0 flex-1">

@@ -207,7 +207,8 @@ const AutoResizeBlockInput = React.memo(function AutoResizeBlockInput({
       return;
     }
 
-    if (e.key === 'Enter' && !e.shiftKey && block.type !== 'code') {
+    // Ctrl/Cmd + Enter inserts a new block below; regular Enter inserts a natural line break inside this block!
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       onEnterSplit();
       return;
@@ -869,7 +870,7 @@ export default function CollaborativeDocumentPage({
               ) : (
                 <article
                   aria-labelledby="collaborative-document-title-input"
-                  className="mx-auto max-w-[740px] pb-28"
+                  className="animate-reveal-up mx-auto max-w-[740px] pb-28"
                 >
                   {/* Read-Only Banner */}
                   {!canEdit && (
@@ -923,7 +924,7 @@ export default function CollaborativeDocumentPage({
                       )}
 
                       {showIconPicker && canEdit && (
-                        <div className="absolute left-0 top-9 z-20 flex items-center gap-1 rounded-xl border border-hairline bg-elevated p-2 shadow-lg">
+                        <div className="animate-modal-in absolute left-0 top-9 z-20 flex items-center gap-1 rounded-xl border border-hairline bg-elevated p-2 shadow-lg">
                           {QUICK_ICONS.map((emoji) => (
                             <button
                               key={emoji}
@@ -1047,21 +1048,21 @@ export default function CollaborativeDocumentPage({
                         }
                         if (block.type === 'heading-1') {
                           return (
-                            <h2 key={block.id} className="mt-4 font-serif text-3xl text-ink">
+                            <h2 key={block.id} className="mt-4 whitespace-pre-wrap font-serif text-3xl text-ink">
                               {block.text}
                             </h2>
                           );
                         }
                         if (block.type === 'heading-2') {
                           return (
-                            <h3 key={block.id} className="mt-3 font-serif text-2xl text-ink">
+                            <h3 key={block.id} className="mt-3 whitespace-pre-wrap font-serif text-2xl text-ink">
                               {block.text}
                             </h3>
                           );
                         }
                         if (block.type === 'heading-3') {
                           return (
-                            <h4 key={block.id} className="mt-2 text-lg font-semibold text-ink">
+                            <h4 key={block.id} className="mt-2 whitespace-pre-wrap text-lg font-semibold text-ink">
                               {block.text}
                             </h4>
                           );
@@ -1070,7 +1071,7 @@ export default function CollaborativeDocumentPage({
                           return (
                             <div key={block.id} className="flex items-start gap-2.5 pl-2">
                               <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
-                              <p className="text-[15.5px] leading-relaxed text-ink">{block.text}</p>
+                              <p className="whitespace-pre-wrap text-[15.5px] leading-relaxed text-ink">{block.text}</p>
                             </div>
                           );
                         }
@@ -1088,7 +1089,7 @@ export default function CollaborativeDocumentPage({
                                 className="mt-1.5 h-4 w-4 rounded accent-[var(--accent)]"
                               />
                               <span
-                                className={`text-[15px] leading-relaxed ${
+                                className={`whitespace-pre-wrap text-[15px] leading-relaxed ${
                                   block.checked ? 'text-muted line-through' : 'text-ink'
                                 }`}
                               >
@@ -1104,7 +1105,7 @@ export default function CollaborativeDocumentPage({
                               className="flex items-start gap-3 rounded-xl border border-hairline bg-surface p-4 text-sm leading-relaxed text-ink"
                             >
                               <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-ochre" />
-                              <p>{block.text}</p>
+                              <p className="whitespace-pre-wrap">{block.text}</p>
                             </div>
                           );
                         }
@@ -1112,7 +1113,7 @@ export default function CollaborativeDocumentPage({
                           return (
                             <blockquote
                               key={block.id}
-                              className="border-l-2 border-terracotta pl-4 font-serif text-xl italic text-secondary"
+                              className="whitespace-pre-wrap border-l-2 border-terracotta pl-4 font-serif text-xl italic text-secondary"
                             >
                               {block.text}
                             </blockquote>
@@ -1207,7 +1208,7 @@ export default function CollaborativeDocumentPage({
                             style={{
                               borderLeftColor: peerOnThisBlock ? peerOnThisBlock.color : undefined
                             }}
-                            className={`group relative rounded-xl px-2 py-2 transition-all sm:px-3 ${
+                            className={`animate-block-enter group relative rounded-xl px-2 py-2 transition-all sm:px-3 ${
                               isDragging ? 'opacity-35 scale-[0.99]' : 'opacity-100'
                             } ${
                               peerOnThisBlock
@@ -1366,7 +1367,7 @@ export default function CollaborativeDocumentPage({
 
                             {/* Slash Command Menu ("/") */}
                             {showSlash && (
-                              <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-hairline bg-elevated p-2 shadow-lg sm:grid-cols-4">
+                              <div className="animate-modal-in mb-2 grid grid-cols-2 gap-1 rounded-xl border border-hairline bg-elevated p-2 shadow-lg sm:grid-cols-4">
                                 {BLOCK_TYPE_OPTIONS.map((opt) => (
                                   <button
                                     key={opt.type}
@@ -1633,7 +1634,7 @@ export default function CollaborativeDocumentPage({
             aria-modal="true"
             aria-label="Vista ampliada de la imagen"
             onClick={() => setLightboxImage(null)}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-6 backdrop-blur-sm"
+            className="animate-backdrop-in fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-6 backdrop-blur-sm"
           >
             <button
               type="button"
@@ -1648,7 +1649,7 @@ export default function CollaborativeDocumentPage({
               src={lightboxImage.url}
               alt={lightboxImage.caption || 'Imagen ampliada'}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[82vh] max-w-[92vw] rounded-xl object-contain shadow-2xl"
+              className="animate-modal-in max-h-[82vh] max-w-[92vw] rounded-xl object-contain shadow-2xl"
             />
             {lightboxImage.caption && (
               <p className="mt-3 text-sm text-white/85">{lightboxImage.caption}</p>
