@@ -43,38 +43,47 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_role public.app_role;
+    v_role public.app_role := 'editor';
     v_full_name TEXT;
+    v_email TEXT;
+    v_avatar TEXT;
 BEGIN
-    -- Safely parse requested role from raw_user_meta_data or default to 'editor'
-    BEGIN
-        v_role := 'editor'; -- never trust client-supplied role metadata
-    EXCEPTION WHEN OTHERS THEN
-        v_role := 'editor';
-    END;
+    v_email := LOWER(TRIM(COALESCE(NEW.email, NEW.id::text || '@user.local')));
 
     v_full_name := COALESCE(
         NULLIF(TRIM(NEW.raw_user_meta_data->>'full_name'), ''),
-        split_part(NEW.email, '@', 1)
+        NULLIF(split_part(v_email, '@', 1), ''),
+        'Usuario'
     );
+
+    v_avatar := COALESCE(
+        NULLIF(TRIM(NEW.raw_user_meta_data->>'avatar_url'), ''),
+        'https://api.dicebear.com/7.x/initials/svg?seed=' || encode(convert_to(v_full_name, 'UTF8'), 'hex')
+    );
+
+    -- Remove stale orphaned profile with the same email if auth.users was recreated
+    DELETE FROM public.profiles
+    WHERE LOWER(email) = v_email AND id <> NEW.id;
 
     INSERT INTO public.profiles (id, email, full_name, avatar_url, role)
     VALUES (
         NEW.id,
-        LOWER(TRIM(NEW.email)),
+        v_email,
         v_full_name,
-        COALESCE(
-            NEW.raw_user_meta_data->>'avatar_url',
-            'https://api.dicebear.com/7.x/initials/svg?seed=' || encode( convert_to(v_full_name, 'UTF8'), 'hex')
-        ),
+        v_avatar,
         v_role
     )
     ON CONFLICT (id) DO UPDATE
     SET
         email = EXCLUDED.email,
         full_name = EXCLUDED.full_name,
+        avatar_url = EXCLUDED.avatar_url,
         updated_at = NOW();
 
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    -- Never block GoTrue user creation with an unhandled 500 trigger error
+    RAISE WARNING 'handle_new_user fallback for %: %', NEW.id, SQLERRM;
     RETURN NEW;
 END;
 $$;
@@ -363,7 +372,8 @@ CREATE OR REPLACE FUNCTION public.update_document_occ(
     p_document_id UUID,
     p_title TEXT,
     p_content JSONB,
-    p_expected_version INTEGER
+    p_expected_version INTEGER,
+    p_bump_version BOOLEAN DEFAULT true
 )
 RETURNS TABLE (
     success BOOLEAN,
@@ -388,7 +398,7 @@ BEGIN
     SET
         title = p_title,
         content = p_content,
-        version = d.version + 1,
+        version = CASE WHEN p_bump_version THEN d.version + 1 ELSE d.version END,
         updated_at = NOW()
     WHERE d.id = p_document_id
       AND d.version = p_expected_version

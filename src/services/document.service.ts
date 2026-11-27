@@ -17,37 +17,130 @@ import type {
   ShareDocumentRequestDTO,
   UpdateDocumentOCCRequestDTO
 } from '@/types/domain.types';
+import type {
+  DatabaseCollaboratorRow,
+  DatabaseDocumentRow,
+  DatabaseProfileRow
+} from '@/types/database.types';
+
+function hydrateSupabaseRows(params: {
+  readonly docRows: readonly DatabaseDocumentRow[];
+  readonly collabRows: readonly DatabaseCollaboratorRow[];
+  readonly profileRows: readonly DatabaseProfileRow[];
+  readonly actor: ProfileDTO;
+}): DocumentDTO[] {
+  const profileMap = new Map<string, ProfileDTO>();
+  params.profileRows.forEach((r) => {
+    profileMap.set(r.id, {
+      id: r.id,
+      email: r.email,
+      fullName: r.full_name,
+      avatarUrl:
+        r.avatar_url ??
+        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(r.full_name)}`,
+      role: r.role,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    });
+  });
+
+  const collabsByDoc = new Map<string, DatabaseCollaboratorRow[]>();
+  params.collabRows.forEach((c) => {
+    const bucket = collabsByDoc.get(c.document_id);
+    if (bucket) {
+      bucket.push(c);
+    } else {
+      collabsByDoc.set(c.document_id, [c]);
+    }
+  });
+
+  const results: DocumentDTO[] = [];
+
+  for (const docRow of params.docRows) {
+    const rawCollabs = collabsByDoc.get(docRow.id) ?? [];
+    const collaborators = rawCollabs.map((c) => ({
+      documentId: c.document_id,
+      userId: c.user_id,
+      permission: c.permission as CollaboratorPermission,
+      createdAt: c.created_at,
+      profile: profileMap.get(c.user_id) ?? {
+        id: c.user_id,
+        email: 'colaborador@collabnotes.io',
+        fullName: 'Colaborador',
+        avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=C',
+        role: 'viewer' as const,
+        createdAt: c.created_at,
+        updatedAt: c.created_at
+      }
+    }));
+
+    const isOwner = docRow.owner_id === params.actor.id;
+    const isAdmin = params.actor.role === 'admin';
+    const userCollab = collaborators.find((c) => c.userId === params.actor.id);
+
+    if (!isOwner && !isAdmin && !userCollab) {
+      continue;
+    }
+
+    const effectivePermission: DocumentDTO['effectivePermission'] = isOwner
+      ? 'owner'
+      : isAdmin
+        ? 'admin'
+        : userCollab
+          ? userCollab.permission
+          : 'viewer';
+
+    results.push({
+      id: docRow.id,
+      title: docRow.title,
+      content: {
+        blocks: Array.isArray(docRow.content?.blocks)
+          ? docRow.content.blocks.map((b) => ({ ...b }))
+          : [],
+        metadata: docRow.content?.metadata ? { ...docRow.content.metadata } : undefined
+      },
+      ownerId: docRow.owner_id,
+      ownerProfile: profileMap.get(docRow.owner_id),
+      version: docRow.version,
+      createdAt: docRow.created_at,
+      updatedAt: docRow.updated_at,
+      collaborators,
+      effectivePermission
+    });
+  }
+
+  return results;
+}
 
 /**
  * Document & Collaborator Service
- * Encapsulates all PostgREST queries, JSONB payload serialization, RLS enforcement,
- * and Optimistic Concurrency Control (OCC) Compare-And-Swap transactions.
+ * Encapsulates persistence, permission enforcement, draft saving (without version spam),
+ * and version-on-exit Optimistic Concurrency Control (OCC).
  */
 export class DocumentService {
   /**
-   * Lists all documents accessible by the current user (owned or shared as collaborator),
-   * sorted by `updated_at DESC`.
+   * Lists all documents accessible by the current user in a single parallel batch (zero N+1).
    */
   public static async listAccessibleDocuments(actor: ProfileDTO): Promise<readonly DocumentDTO[]> {
     try {
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: docRows, error } = await supabase
-          .from('documents')
-          .select('*')
-          .order('updated_at', { ascending: false });
+        const [docsRes, collabsRes, profilesRes] = await Promise.all([
+          supabase.from('documents').select('*').order('updated_at', { ascending: false }),
+          supabase.from('document_collaborators').select('*'),
+          supabase.from('profiles').select('*')
+        ]);
 
-        if (!error && docRows) {
-          const results: DocumentDTO[] = [];
-          for (const row of docRows) {
-            const dto = await this.fetchAndHydrateSupabaseDocument(row.id, actor);
-            if (dto) {
-              results.push(dto);
-            }
-          }
-          return results;
+        if (docsRes.error) {
+          throw new Error(docsRes.error.message);
         }
-        throw new Error(error?.message ?? 'Failed to load documents.');
+
+        return hydrateSupabaseRows({
+          docRows: (docsRes.data ?? []) as DatabaseDocumentRow[],
+          collabRows: (collabsRes.data ?? []) as DatabaseCollaboratorRow[],
+          profileRows: (profilesRes.data ?? []) as DatabaseProfileRow[],
+          actor
+        });
       }
 
       const rawDocs = LocalDatabaseAdapter.getRawDocuments();
@@ -59,13 +152,10 @@ export class DocumentService {
       return hydrated;
     } catch (error) {
       console.error('[DocumentService.listAccessibleDocuments] Failed:', error);
-      throw new Error('Failed to load documents from storage.');
+      throw new Error('No se pudieron cargar tus notas. Comprueba tu conexión e inténtalo de nuevo.');
     }
   }
 
-  /**
-   * Retrieves a single document by ID, enforcing Row Level Security SELECT rules.
-   */
   public static async getDocumentById(
     documentId: string,
     actor: ProfileDTO
@@ -74,33 +164,28 @@ export class DocumentService {
       if (isSupabaseConfigured()) {
         const dto = await this.fetchAndHydrateSupabaseDocument(documentId, actor);
         if (dto) return dto;
-        throw new Error('Document not found or access denied by RLS (HTTP 403/404).');
+        throw new Error('No se encontró la nota o no tienes permisos para verla.');
       }
 
       const rawDocs = LocalDatabaseAdapter.getRawDocuments();
       const target = rawDocs.find((d) => d.id === documentId);
 
       if (!target) {
-        throw new Error('Document not found (HTTP 404).');
+        throw new Error('Esta nota ya no existe o fue eliminada.');
       }
 
       const hydrated = LocalDatabaseAdapter.hydrateDocumentForUser(target, actor);
       if (!hydrated) {
-        throw new Error(
-          'Access Denied by RLS Policy: You do not have permission to view this document (HTTP 403).'
-        );
+        throw new Error('No tienes permisos para acceder a esta nota.');
       }
 
       return hydrated;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unable to load document.';
+      const msg = error instanceof Error ? error.message : 'No se pudo abrir la nota.';
       throw new Error(msg);
     }
   }
 
-  /**
-   * Creates a new document with initial structured JSONB blocks and version = 1.
-   */
   public static async createDocument(
     payload: CreateDocumentDTO,
     actor: ProfileDTO
@@ -110,21 +195,14 @@ export class DocumentService {
       blocks: [
         {
           id: `blk-${crypto.randomUUID().slice(0, 8)}`,
-          type: 'heading-1',
-          text: payload.title.trim() || 'Untitled Collaborative Note',
-          updatedBy: actor.email,
-          updatedAt: now
-        },
-        {
-          id: `blk-${crypto.randomUUID().slice(0, 8)}`,
           type: 'paragraph',
-          text: 'Start typing here to collaborate in real time. Changes are automatically versioned and synchronized over WebSockets.',
+          text: '',
           updatedBy: actor.email,
           updatedAt: now
         }
       ],
       metadata: {
-        tags: ['Collaborative', 'JSONB'],
+        tags: [],
         lastEditedBy: actor.email
       }
     };
@@ -135,7 +213,7 @@ export class DocumentService {
         const { data, error } = await supabase
           .from('documents')
           .insert({
-            title: payload.title.trim() || 'Untitled Document',
+            title: payload.title.trim() || 'Nota sin título',
             content: initialContent,
             owner_id: actor.id,
             version: 1
@@ -144,17 +222,27 @@ export class DocumentService {
           .single();
 
         if (error || !data) {
-          throw new Error(error?.message ?? 'Failed to insert document in Supabase.');
+          throw new Error(error?.message ?? 'No se pudo crear la nota.');
         }
 
-        const hydrated = await this.fetchAndHydrateSupabaseDocument(data.id, actor);
-        if (hydrated) return hydrated;
-        throw new Error('Document was created but could not be reloaded.');
+        const row = data as DatabaseDocumentRow;
+        return {
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          ownerId: row.owner_id,
+          ownerProfile: actor,
+          version: row.version,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          collaborators: [],
+          effectivePermission: 'owner'
+        };
       }
 
       const newRawDoc: RawStoredDocument = {
         id: crypto.randomUUID(),
-        title: payload.title.trim() || 'Untitled Document',
+        title: payload.title.trim() || 'Nota sin título',
         content: initialContent,
         ownerId: actor.id,
         version: 1,
@@ -167,27 +255,32 @@ export class DocumentService {
 
       const hydrated = LocalDatabaseAdapter.hydrateDocumentForUser(newRawDoc, actor);
       if (!hydrated) {
-        throw new Error('Failed to hydrate newly created document.');
+        throw new Error('No se pudo inicializar la nueva nota.');
       }
       return hydrated;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not create document.';
+      const msg = error instanceof Error ? error.message : 'No se pudo crear la nota.';
       throw new Error(msg);
     }
   }
 
   /**
-   * Updates a document using Optimistic Concurrency Control (OCC).
-   * - Checks `WHERE id = documentId AND version = expectedVersion`
-   * - If matched: increments `version = expectedVersion + 1` atomically.
-   * - If version mismatch (another user saved concurrently): fetches the latest committed version,
-   *   runs a deterministic 3-way JSONB block merge via `ConcurrencyService`, and persists `remote.version + 1`.
+   * Saves document changes with session-aware Optimistic Concurrency Control:
+   * - `bumpVersion = false` (active editing): persists content WITHOUT incrementing `version`.
+   *   Never conflicts with the same tab's own session (`clientSessionId`). Only merges if a
+   *   DIFFERENT collaborator session wrote newer changes concurrently.
+   * - `bumpVersion = true` (leaving/closing the note): atomically increments `version = version + 1`
+   *   once for the entire editing session.
    */
   public static async updateDocumentWithOCC(
     request: UpdateDocumentOCCRequestDTO,
     actor: ProfileDTO
   ): Promise<OptimisticUpdateResultDTO> {
     const MAX_OCC_RETRIES = 3;
+    const shouldBumpVersion = request.bumpVersion ?? true;
+    const saveId =
+      request.clientSaveId ?? `save-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
     let attempt = 0;
     let candidateTitle = request.title;
     let candidateContent = request.content;
@@ -195,29 +288,154 @@ export class DocumentService {
     let wasMerged = false;
     let conflictDetails: string | undefined;
 
+    const buildTaggedContent = (content: DocumentContentDTO): DocumentContentDTO => ({
+      blocks: content.blocks.map((b) => ({ ...b })),
+      metadata: {
+        ...content.metadata,
+        lastEditedBy: actor.email,
+        lastSessionId: request.clientSessionId ?? content.metadata?.lastSessionId,
+        lastSaveId: saveId
+      }
+    });
+
     while (attempt < MAX_OCC_RETRIES) {
       attempt += 1;
+      const taggedContent = buildTaggedContent(candidateContent);
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+
+        // PATH A: Active Editing Save (DO NOT bump version — keep `version` stable until exit!)
+        if (!shouldBumpVersion) {
+          const { data: currentRow, error: readErr } = await supabase
+            .from('documents')
+            .select('id, title, content, version, updated_at')
+            .eq('id', request.documentId)
+            .maybeSingle();
+
+          if (readErr) {
+            throw new Error(`No se pudieron guardar los cambios: ${readErr.message}`);
+          }
+          if (!currentRow) {
+            throw new Error('Esta nota ya no existe.');
+          }
+
+          const serverRow = currentRow as Pick<
+            DatabaseDocumentRow,
+            'id' | 'title' | 'content' | 'version' | 'updated_at'
+          >;
+          const serverSessionId = serverRow.content?.metadata?.lastSessionId;
+          const serverSaveId = serverRow.content?.metadata?.lastSaveId;
+
+          const isOwnSession =
+            Boolean(request.clientSessionId) && serverSessionId === request.clientSessionId;
+          const isSameKnownState =
+            !serverSaveId ||
+            !request.expectedRemoteSaveId ||
+            serverSaveId === request.expectedRemoteSaveId;
+          const versionMatches = serverRow.version === candidateExpectedVersion;
+
+          // Only merge if a DIFFERENT session actually wrote a newer revision or draft!
+          const hasTrueExternalConflict =
+            !isOwnSession && (!versionMatches || !isSameKnownState);
+
+          if (hasTrueExternalConflict) {
+            const mergeResult = ConcurrencyService.mergeConcurrentChanges({
+              baseTitle: request.baseTitle ?? serverRow.title,
+              localTitle: candidateTitle,
+              remoteTitle: serverRow.title,
+              baseContent: request.baseContent,
+              localContent: candidateContent,
+              remoteContent: serverRow.content,
+              localAuthorEmail: request.actorEmail
+            });
+            candidateTitle = mergeResult.mergedTitle;
+            candidateContent = mergeResult.mergedContent;
+            candidateExpectedVersion = serverRow.version;
+            wasMerged = mergeResult.conflictSummary.length > 0;
+            if (wasMerged) {
+              conflictDetails = mergeResult.conflictSummary.join(' ');
+            }
+          }
+
+          const finalTagged = buildTaggedContent(candidateContent);
+          const { data: updatedRow, error: updateErr } = await supabase
+            .from('documents')
+            .update({
+              title: candidateTitle,
+              content: finalTagged
+            })
+            .eq('id', request.documentId)
+            .eq('version', serverRow.version)
+            .select('id, title, content, version, updated_at')
+            .maybeSingle();
+
+          if (updateErr) {
+            if (updateErr.code === '42501') {
+              throw new Error('No tienes permisos de edición sobre esta nota.');
+            }
+            throw new Error(`No se pudieron guardar los cambios: ${updateErr.message}`);
+          }
+
+          if (updatedRow) {
+            const committed = updatedRow as Pick<
+              DatabaseDocumentRow,
+              'id' | 'title' | 'content' | 'version' | 'updated_at'
+            >;
+            const updatedDto: DocumentDTO = request.currentSnapshot
+              ? {
+                  ...request.currentSnapshot,
+                  title: committed.title,
+                  content: committed.content,
+                  version: committed.version,
+                  updatedAt: committed.updated_at
+                }
+              : await this.getDocumentById(request.documentId, actor);
+
+            return {
+              document: updatedDto,
+              wasMerged,
+              previousVersion: request.expectedVersion,
+              newVersion: committed.version,
+              conflictDetails
+            };
+          }
+
+          // Row version changed mid-flight right between read & update -> loop and merge cleanly
+          continue;
+        }
+
+        // PATH B: Final Session Exit Commit (bump version atomically ONCE via RPC)
         const { data: rpcRows, error: rpcError } = await supabase.rpc('update_document_occ', {
           p_document_id: request.documentId,
           p_title: candidateTitle,
-          p_content: candidateContent,
+          p_content: taggedContent,
           p_expected_version: candidateExpectedVersion
         });
 
         if (rpcError) {
-          throw new Error(`RLS / OCC Database Error: ${rpcError.message}`);
+          if (rpcError.code === '42501') {
+            throw new Error('No tienes permisos de edición sobre esta nota.');
+          }
+          throw new Error(`No se pudieron guardar los cambios: ${rpcError.message}`);
         }
 
         const outcome = rpcRows?.[0];
         if (!outcome) {
-          throw new Error('Unexpected empty response from update_document_occ RPC.');
+          throw new Error('Respuesta inesperada al guardar la nota.');
         }
 
         if (outcome.success) {
-          const updatedDto = await this.getDocumentById(request.documentId, actor);
+          const updatedDto: DocumentDTO = request.currentSnapshot
+            ? {
+                ...request.currentSnapshot,
+                title: outcome.current_title,
+                content: outcome.current_content,
+                version: outcome.current_version,
+                updatedAt: outcome.updated_at
+              }
+            : await this.getDocumentById(request.documentId, actor);
+
           return {
             document: updatedDto,
             wasMerged,
@@ -244,16 +462,16 @@ export class DocumentService {
         wasMerged = true;
         conflictDetails =
           mergeResult.conflictSummary.join(' ') ||
-          `Concurrent version v${outcome.current_version} detected and merged automatically.`;
+          'Se combinaron ediciones simultáneas de otro colaborador sin perder datos.';
         continue;
       }
 
-      // Local / Hybrid PostgreSQL Engine with strict RLS & OCC Compare-And-Swap
+      // LOCAL / HYBRID ENGINE
       const rawDocs = LocalDatabaseAdapter.getRawDocuments();
       const docIndex = rawDocs.findIndex((d) => d.id === request.documentId);
 
       if (docIndex === -1) {
-        throw new Error('Document no longer exists (HTTP 404).');
+        throw new Error('Esta nota ya no existe.');
       }
 
       const currentDbDoc = rawDocs[docIndex]!;
@@ -266,26 +484,30 @@ export class DocumentService {
         !hydratedPermissionCheck ||
         hydratedPermissionCheck.effectivePermission === 'viewer'
       ) {
-        throw new Error(
-          'RLS Policy Violation (42501): Users with "viewer" permission cannot modify this document.'
-        );
+        throw new Error('Tu rol en esta nota es solo lectura y no puedes guardar cambios.');
       }
 
-      // Compare-And-Swap check: `WHERE id = $1 AND version = $2`
-      if (currentDbDoc.version === candidateExpectedVersion) {
-        const nextVersion = currentDbDoc.version + 1;
+      const serverSessionId = currentDbDoc.content.metadata?.lastSessionId;
+      const serverSaveId = currentDbDoc.content.metadata?.lastSaveId;
+      const isOwnSession =
+        Boolean(request.clientSessionId) && serverSessionId === request.clientSessionId;
+      const isSameKnownState =
+        !serverSaveId ||
+        !request.expectedRemoteSaveId ||
+        serverSaveId === request.expectedRemoteSaveId;
+      const versionMatches = currentDbDoc.version === candidateExpectedVersion;
+
+      // Never self-conflict with the same active session
+      if (isOwnSession || (versionMatches && isSameKnownState)) {
+        const nextVersion = shouldBumpVersion
+          ? currentDbDoc.version + 1
+          : currentDbDoc.version;
         const now = new Date().toISOString();
 
         const updatedRawDoc: RawStoredDocument = {
           ...currentDbDoc,
           title: candidateTitle,
-          content: {
-            blocks: candidateContent.blocks.map((b) => ({ ...b })),
-            metadata: {
-              ...candidateContent.metadata,
-              lastEditedBy: actor.email
-            }
-          },
+          content: taggedContent,
           version: nextVersion,
           updatedAt: now
         };
@@ -303,8 +525,7 @@ export class DocumentService {
         };
       }
 
-      // Version mismatch detected (currentDbDoc.version !== candidateExpectedVersion)!
-      // Execute 3-way non-destructive JSONB block merge and retry CAS
+      // Genuine external collaborator conflict -> merge 3-way and retry
       const mergeResult = ConcurrencyService.mergeConcurrentChanges({
         baseTitle: request.baseTitle ?? currentDbDoc.title,
         localTitle: candidateTitle,
@@ -318,21 +539,41 @@ export class DocumentService {
       candidateTitle = mergeResult.mergedTitle;
       candidateContent = mergeResult.mergedContent;
       candidateExpectedVersion = currentDbDoc.version;
-      wasMerged = true;
-      conflictDetails =
-        mergeResult.conflictSummary.join(' ') ||
-        `Merged concurrent changes from v${currentDbDoc.version} without data loss.`;
+      wasMerged = mergeResult.conflictSummary.length > 0;
+      if (wasMerged) {
+        conflictDetails = mergeResult.conflictSummary.join(' ');
+      }
+      // On next iteration commit against currentDbDoc.version
+      const finalTagged = buildTaggedContent(candidateContent);
+      const nextVersion = shouldBumpVersion ? currentDbDoc.version + 1 : currentDbDoc.version;
+      const now = new Date().toISOString();
+
+      const mergedRawDoc: RawStoredDocument = {
+        ...currentDbDoc,
+        title: candidateTitle,
+        content: finalTagged,
+        version: nextVersion,
+        updatedAt: now
+      };
+
+      const nextDocs = rawDocs.map((d, idx) => (idx === docIndex ? mergedRawDoc : d));
+      LocalDatabaseAdapter.saveRawDocuments(nextDocs);
+
+      const hydrated = LocalDatabaseAdapter.hydrateDocumentForUser(mergedRawDoc, actor)!;
+      return {
+        document: hydrated,
+        wasMerged,
+        previousVersion: request.expectedVersion,
+        newVersion: nextVersion,
+        conflictDetails
+      };
     }
 
     throw new Error(
-      'Optimistic Concurrency Control exceeded maximum retry attempts under heavy write contention.'
+      'Hubo demasiadas ediciones simultáneas al mismo tiempo. Vuelve a intentarlo en un segundo.'
     );
   }
 
-  /**
-   * Simulates an external collaborator committing a new version directly to the database
-   * while the active user is editing, allowing interactive verification of OCC conflict resolution.
-   */
   public static async simulateConcurrentCollaboratorCommit(
     documentId: string,
     currentUser: ProfileDTO
@@ -348,7 +589,7 @@ export class DocumentService {
     const rawDocs = LocalDatabaseAdapter.getRawDocuments();
     const docIndex = rawDocs.findIndex((d) => d.id === documentId);
     if (docIndex === -1) {
-      throw new Error('Document not found for concurrency simulation.');
+      throw new Error('No se encontró la nota.');
     }
 
     const targetDoc = rawDocs[docIndex]!;
@@ -359,8 +600,8 @@ export class DocumentService {
       ...targetDoc.content.blocks.map((b) => ({ ...b })),
       {
         id: newBlockId,
-        type: 'quote' as const,
-        text: `[Live Concurrent Commit by ${peerAuthor.fullName} at v${targetDoc.version + 1}]: Verified zero lost updates via OCC version Compare-And-Swap.`,
+        type: 'callout' as const,
+        text: `Nota añadida simultáneamente por ${peerAuthor.fullName.replace(/\s*\(.*\)/, '')}.`,
         updatedBy: peerAuthor.email,
         updatedAt: now
       }
@@ -374,7 +615,9 @@ export class DocumentService {
         blocks: updatedBlocks,
         metadata: {
           ...targetDoc.content.metadata,
-          lastEditedBy: peerAuthor.email
+          lastEditedBy: peerAuthor.email,
+          lastSessionId: `sim-${Date.now()}`,
+          lastSaveId: `sim-save-${Date.now()}`
         }
       },
       version: nextVersion,
@@ -392,15 +635,12 @@ export class DocumentService {
     };
   }
 
-  /**
-   * Deletes a document (restricted by RLS to the document owner or platform admin).
-   */
   public static async deleteDocument(documentId: string, actor: ProfileDTO): Promise<void> {
     if (isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       const { error } = await supabase.from('documents').delete().eq('id', documentId);
       if (error) {
-        throw new Error(`RLS Delete Policy Error: ${error.message}`);
+        throw new Error('Solo el propietario puede eliminar esta nota.');
       }
       return;
     }
@@ -408,13 +648,11 @@ export class DocumentService {
     const rawDocs = LocalDatabaseAdapter.getRawDocuments();
     const target = rawDocs.find((d) => d.id === documentId);
     if (!target) {
-      throw new Error('Document not found.');
+      throw new Error('No se encontró la nota.');
     }
 
     if (target.ownerId !== actor.id && actor.role !== 'admin') {
-      throw new Error(
-        'RLS Policy Violation: Only the document owner or a platform admin can delete a document.'
-      );
+      throw new Error('Solo el propietario puede eliminar esta nota.');
     }
 
     LocalDatabaseAdapter.saveRawDocuments(rawDocs.filter((d) => d.id !== documentId));
@@ -424,33 +662,30 @@ export class DocumentService {
     );
   }
 
-  /**
-   * Shares a document with a user by email address, assigning `'editor'` or `'viewer'` permission.
-   */
   public static async shareDocumentByEmail(
     request: ShareDocumentRequestDTO,
     actor: ProfileDTO
   ): Promise<DocumentDTO> {
     const targetEmail = request.targetEmail.trim().toLowerCase();
     if (!targetEmail) {
-      throw new Error('Please provide a valid collaborator email address.');
+      throw new Error('Introduce un correo electrónico válido.');
     }
 
     const doc = await this.getDocumentById(request.documentId, actor);
     if (doc.ownerId !== actor.id && actor.role !== 'admin') {
-      throw new Error(
-        'RLS Policy Violation: Only the document owner or admin can manage collaborators.'
-      );
+      throw new Error('Solo el propietario de la nota puede gestionar colaboradores.');
     }
 
-    if (targetEmail === actor.email.toLowerCase() || targetEmail === doc.ownerProfile?.email.toLowerCase()) {
-      throw new Error('The document owner already has full permissions.');
+    if (
+      targetEmail === actor.email.toLowerCase() ||
+      targetEmail === doc.ownerProfile?.email.toLowerCase()
+    ) {
+      throw new Error('El propietario de la nota ya cuenta con acceso completo.');
     }
 
     let targetProfile = await AuthService.findProfileByEmail(targetEmail);
     if (!targetProfile && !isSupabaseConfigured()) {
-      // Automatically provision a collaborator profile in local evaluation mode if invited by email
-      const displayName = targetEmail.split('@')[0] ?? 'Collaborator';
+      const displayName = targetEmail.split('@')[0] ?? 'Colaborador';
       targetProfile = LocalDatabaseAdapter.createProfileViaAuthTrigger({
         email: targetEmail,
         fullName: displayName.charAt(0).toUpperCase() + displayName.slice(1),
@@ -459,7 +694,7 @@ export class DocumentService {
     }
 
     if (!targetProfile) {
-      throw new Error(`No registered user found with email "${targetEmail}".`);
+      throw new Error(`No existe ningún usuario registrado con el correo "${targetEmail}".`);
     }
 
     if (isSupabaseConfigured()) {
@@ -500,9 +735,6 @@ export class DocumentService {
     return this.getDocumentById(request.documentId, actor);
   }
 
-  /**
-   * Removes a collaborator from a document.
-   */
   public static async removeCollaborator(params: {
     readonly documentId: string;
     readonly targetUserId: string;
@@ -514,7 +746,7 @@ export class DocumentService {
       params.actor.role !== 'admin' &&
       params.targetUserId !== params.actor.id
     ) {
-      throw new Error('RLS Policy Violation: Not authorized to revoke collaborator access.');
+      throw new Error('No tienes permisos para revocar el acceso de este colaborador.');
     }
 
     if (isSupabaseConfigured()) {
@@ -539,86 +771,26 @@ export class DocumentService {
     return this.getDocumentById(params.documentId, params.actor);
   }
 
-  /**
-   * Helper for hydrating a Supabase document row with owner and collaborators.
-   */
   private static async fetchAndHydrateSupabaseDocument(
     documentId: string,
     actor: ProfileDTO
   ): Promise<DocumentDTO | null> {
     const supabase = getSupabaseClient();
-    const { data: docRow, error: docError } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('id', documentId)
-      .maybeSingle();
+    const [docRes, collabRes, profilesRes] = await Promise.all([
+      supabase.from('documents').select('*').eq('id', documentId).maybeSingle(),
+      supabase.from('document_collaborators').select('*').eq('document_id', documentId),
+      supabase.from('profiles').select('*')
+    ]);
 
-    if (docError || !docRow) return null;
+    if (docRes.error || !docRes.data) return null;
 
-    const { data: collabRows } = await supabase
-      .from('document_collaborators')
-      .select('*')
-      .eq('document_id', documentId);
-
-    const { data: profileRows } = await supabase.from('profiles').select('*');
-    const profileMap = new Map<string, ProfileDTO>();
-    (profileRows ?? []).forEach((r) => {
-      profileMap.set(r.id, {
-        id: r.id,
-        email: r.email,
-        fullName: r.full_name,
-        avatarUrl:
-          r.avatar_url ??
-          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(r.full_name)}`,
-        role: r.role,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at
-      });
+    const hydrated = hydrateSupabaseRows({
+      docRows: [docRes.data as DatabaseDocumentRow],
+      collabRows: (collabRes.data ?? []) as DatabaseCollaboratorRow[],
+      profileRows: (profilesRes.data ?? []) as DatabaseProfileRow[],
+      actor
     });
 
-    const collaborators = (collabRows ?? []).map((c) => ({
-      documentId: c.document_id,
-      userId: c.user_id,
-      permission: c.permission as CollaboratorPermission,
-      createdAt: c.created_at,
-      profile: profileMap.get(c.user_id) ?? {
-        id: c.user_id,
-        email: 'collaborator@collabnotes.io',
-        fullName: 'Collaborator',
-        avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=C',
-        role: 'viewer' as const,
-        createdAt: c.created_at,
-        updatedAt: c.created_at
-      }
-    }));
-
-    const isOwner = docRow.owner_id === actor.id;
-    const isAdmin = actor.role === 'admin';
-    const userCollab = collaborators.find((c) => c.userId === actor.id);
-
-    if (!isOwner && !isAdmin && !userCollab) {
-      return null;
-    }
-
-    const effectivePermission: DocumentDTO['effectivePermission'] = isOwner
-      ? 'owner'
-      : isAdmin
-        ? 'admin'
-        : userCollab
-          ? userCollab.permission
-          : 'viewer';
-
-    return {
-      id: docRow.id,
-      title: docRow.title,
-      content: docRow.content,
-      ownerId: docRow.owner_id,
-      ownerProfile: profileMap.get(docRow.owner_id),
-      version: docRow.version,
-      createdAt: docRow.created_at,
-      updatedAt: docRow.updated_at,
-      collaborators,
-      effectivePermission
-    };
+    return hydrated[0] ?? null;
   }
 }

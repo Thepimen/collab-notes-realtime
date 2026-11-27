@@ -49,7 +49,7 @@ export function ToastContainer() {
             <button
               type="button"
               onClick={() => dismissToast(toast.id)}
-              aria-label={`Dismiss notification: ${toast.title}`}
+              aria-label={`Cerrar notificación: ${toast.title}`}
               className="rounded p-1 text-muted transition hover:bg-surface hover:text-ink"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />

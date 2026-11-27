@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, Shield, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Link2, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react';
 import type {
   CollaboratorDTO,
   CollaboratorPermission,
@@ -34,6 +34,7 @@ export function ShareDocumentModal({
   const [email, setEmail] = useState<string>('');
   const [permission, setPermission] = useState<CollaboratorPermission>('editor');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -46,6 +47,16 @@ export function ShareDocumentModal({
       if (ok) setEmail('');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      // Ignore clipboard fallback
     }
   };
 
@@ -66,14 +77,11 @@ export function ShareDocumentModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-xl border border-hairline bg-elevated p-6 text-ink shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl border border-hairline bg-elevated p-6 text-ink shadow-2xl">
         <div className="flex items-start justify-between border-b border-hairline pb-4">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
-              PostgreSQL RLS · Access Matrix
-            </p>
-            <h2 id="share-document-modal-title" className="mt-0.5 font-serif text-2xl text-ink">
-              Collaborators &amp; Permissions
+            <h2 id="share-document-modal-title" className="font-serif text-2xl text-ink">
+              Compartir nota
             </h2>
             <p className="mt-0.5 max-w-sm truncate text-xs text-secondary">{documentTitle}</p>
           </div>
@@ -81,7 +89,7 @@ export function ShareDocumentModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close share modal"
+            aria-label="Cerrar ventana"
             className="rounded-lg p-1.5 text-muted transition hover:bg-surface hover:text-ink"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -92,9 +100,9 @@ export function ShareDocumentModal({
           <form onSubmit={(e) => void handleSubmit(e)} className="mt-5 space-y-3">
             <label
               htmlFor="collaborator-email-input"
-              className="block font-mono text-[11px] uppercase tracking-wider text-secondary"
+              className="block text-xs font-semibold text-secondary"
             >
-              Grant Document Access
+              Invitar personas por correo electrónico
             </label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
@@ -108,19 +116,19 @@ export function ShareDocumentModal({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="colleague@collabnotes.io"
+                  placeholder="nombre@ejemplo.com"
                   className="w-full rounded-lg border border-hairline bg-canvas py-2 pl-8 pr-3 text-xs text-ink placeholder-muted focus:border-terracotta focus:outline-none"
                 />
               </div>
 
               <select
-                aria-label="Select collaborator permission role"
+                aria-label="Seleccionar permiso"
                 value={permission}
                 onChange={(e) => setPermission(e.target.value as CollaboratorPermission)}
                 className="rounded-lg border border-hairline bg-canvas px-3 py-2 text-xs font-medium text-ink focus:border-terracotta focus:outline-none"
               >
-                <option value="editor">Editor (Write)</option>
-                <option value="viewer">Viewer (Read-Only)</option>
+                <option value="editor">Puede editar</option>
+                <option value="viewer">Solo lectura</option>
               </select>
 
               <button
@@ -129,19 +137,19 @@ export function ShareDocumentModal({
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-terracotta px-4 py-2 text-xs font-semibold text-white transition hover:bg-terracotta-hover disabled:opacity-50"
               >
                 <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{isSubmitting ? 'Saving…' : 'Invite'}</span>
+                <span>{isSubmitting ? 'Añadiendo…' : 'Invitar'}</span>
               </button>
             </div>
 
             {quickInviteCandidates.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="font-mono text-[10px] text-muted">Sandbox accounts:</span>
+                <span className="text-[11px] text-muted">Sugerencias:</span>
                 {quickInviteCandidates.map((cand) => (
                   <button
                     key={cand.id}
                     type="button"
                     onClick={() => setEmail(cand.email)}
-                    className="rounded border border-hairline bg-surface px-2 py-0.5 font-mono text-[10px] text-secondary transition hover:border-borderstrong hover:text-ink"
+                    className="rounded-md border border-hairline bg-surface px-2 py-0.5 text-[11px] text-secondary transition hover:border-borderstrong hover:text-ink"
                   >
                     {cand.email}
                   </button>
@@ -151,26 +159,27 @@ export function ShareDocumentModal({
           </form>
         ) : (
           <div className="mt-4 rounded-lg border border-ochre/30 bg-ochre-soft px-3.5 py-2.5 text-xs text-ochre">
-            Only the document owner or platform administrator can mutate collaborator rows (
-            <code className="font-mono">collaborators_insert_owner_only</code>).
+            Solo el propietario de esta nota puede invitar o cambiar permisos de colaboradores.
           </div>
         )}
 
         <div className="mt-5">
-          <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted">
-            Active Access List ({collaborators.length + 1})
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+            Personas con acceso ({collaborators.length + 1})
           </h3>
 
-          <ul className="mt-2 max-h-56 divide-y divide-hairline overflow-y-auto rounded-lg border border-hairline bg-canvas">
+          <ul className="mt-2 max-h-56 divide-y divide-hairline overflow-y-auto rounded-xl border border-hairline bg-canvas">
             {ownerProfile && (
               <li className="flex items-center justify-between px-3.5 py-2.5">
                 <div>
-                  <p className="text-xs font-semibold text-ink">{ownerProfile.fullName}</p>
-                  <p className="font-mono text-[11px] text-secondary">{ownerProfile.email}</p>
+                  <p className="text-xs font-semibold text-ink">
+                    {ownerProfile.fullName.replace(/\s*\(.*\)/, '')}
+                  </p>
+                  <p className="text-[11px] text-secondary">{ownerProfile.email}</p>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded border border-hairline bg-surface px-2 py-0.5 font-mono text-[10px] uppercase text-secondary">
+                <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-surface px-2 py-0.5 text-[11px] font-medium text-secondary">
                   <Shield className="h-3 w-3 text-terracotta" aria-hidden="true" />
-                  Owner
+                  Propietario
                 </span>
               </li>
             )}
@@ -181,15 +190,17 @@ export function ShareDocumentModal({
                 className="flex items-center justify-between gap-2 px-3.5 py-2.5"
               >
                 <div>
-                  <p className="text-xs font-semibold text-ink">{collab.profile.fullName}</p>
-                  <p className="font-mono text-[11px] text-secondary">{collab.profile.email}</p>
+                  <p className="text-xs font-semibold text-ink">
+                    {collab.profile.fullName.replace(/\s*\(.*\)/, '')}
+                  </p>
+                  <p className="text-[11px] text-secondary">{collab.profile.email}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {canManageCollaborators ? (
                     <>
                       <select
-                        aria-label={`Change permission for ${collab.profile.email}`}
+                        aria-label={`Cambiar permiso para ${collab.profile.email}`}
                         value={collab.permission}
                         onChange={(e) =>
                           void onShare(
@@ -197,30 +208,58 @@ export function ShareDocumentModal({
                             e.target.value as CollaboratorPermission
                           )
                         }
-                        className="rounded border border-hairline bg-elevated px-2 py-1 font-mono text-[11px] text-ink"
+                        className="rounded-md border border-hairline bg-elevated px-2 py-1 text-xs text-ink"
                       >
-                        <option value="editor">editor</option>
-                        <option value="viewer">viewer</option>
+                        <option value="editor">Puede editar</option>
+                        <option value="viewer">Solo lectura</option>
                       </select>
 
                       <button
                         type="button"
                         onClick={() => void onRevoke(collab.userId, collab.profile.email)}
-                        aria-label={`Revoke access for ${collab.profile.email}`}
+                        aria-label={`Retirar acceso a ${collab.profile.email}`}
                         className="rounded p-1 text-muted transition hover:bg-terracotta-soft hover:text-terracotta"
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
                     </>
                   ) : (
-                    <span className="rounded border border-hairline bg-surface px-2 py-0.5 font-mono text-[10px] uppercase text-secondary">
-                      {collab.permission}
+                    <span className="rounded-md border border-hairline bg-surface px-2 py-0.5 text-[11px] text-secondary">
+                      {collab.permission === 'editor' ? 'Puede editar' : 'Solo lectura'}
                     </span>
                   )}
                 </div>
               </li>
             ))}
           </ul>
+        </div>
+
+        <div className="mt-5 flex items-center justify-between border-t border-hairline pt-4">
+          <button
+            type="button"
+            onClick={() => void handleCopyLink()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-borderstrong"
+          >
+            {copiedLink ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-sage" aria-hidden="true" />
+                <span className="text-sage">Enlace copiado</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                <span>Copiar enlace</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg bg-ink px-4 py-1.5 text-xs font-semibold text-canvas transition hover:opacity-90"
+          >
+            Listo
+          </button>
         </div>
       </div>
     </div>

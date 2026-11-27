@@ -29,9 +29,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'CollabNotes — Real-Time Collaborative Atelier (OCC · RLS · JSONB)',
+  title: 'CollabNotes — Notas colaborativas en tiempo real',
   description:
-    'Editorial real-time collaborative writing environment powered by Next.js 15, PostgreSQL Row Level Security, Hybrid JSONB storage, and Optimistic Concurrency Control.'
+    'Espacio tranquilo y rápido para escribir, organizar ideas y colaborar en documentos en tiempo real con tu equipo.'
 };
 
 const FOUC_FREE_THEME_SCRIPT = `
@@ -58,7 +58,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="es"
       suppressHydrationWarning
       className={`${instrumentSerif.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
     >
